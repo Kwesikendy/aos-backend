@@ -1,0 +1,24 @@
+{
+  "general": {
+    "schoolName": "AcademyOS School",
+    "website": "https://academyos.edu",
+    "contactEmail": "admin@academyos.edu",
+    "phone": "+233595749197",
+    "address": "Adenta"
+  },
+  "registration": {
+    "allowStudentRegistration": true,
+    "allowTeacherRegistration": false,
+    "requireEmailVerification": true,
+    "defaultStudentRole": "student"
+  },
+  "appearance": {
+    "primaryColor": "#4F46E5",
+    "theme": "dark",
+    "showBranding": true
+  },
+  "notifications": {
+    "emailEnabled": true,
+    "smsEnabled": false
+  }
+}

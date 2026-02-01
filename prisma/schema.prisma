@@ -1,0 +1,238 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  student
+  teacher
+  parent
+  admin
+}
+
+enum CourseStatus {
+  draft
+  published
+  archived
+}
+
+enum CourseLevel {
+  beginner
+  intermediate
+  advanced
+}
+
+enum ClassStatus {
+  scheduled
+  live
+  completed
+  cancelled
+}
+
+enum RecurrencePattern {
+  daily
+  weekly
+  biweekly
+  monthly
+}
+
+enum AssignmentType {
+  quiz
+  test
+  homework
+  project
+  paper
+  presentation
+}
+
+enum AssignmentStatus {
+  draft
+  published
+  closed
+  graded
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  late
+  excused
+}
+
+model User {
+  id        String   @id @default(uuid())
+  firstName String
+  lastName  String
+  email     String   @unique
+  password  String
+  role      Role     @default(student)
+  avatar    String?
+  phone     String?
+  dateOfBirth DateTime?
+  isActive  Boolean  @default(true)
+  lastLogin DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  createdCourses Course[]      @relation("CreatedBy")
+  instructedCourses Course[]   @relation("Instructors")
+  enrollments    Enrollment[]
+  classes        Class[]       @relation("ClassInstructor")
+  createdAssignments Assignment[] @relation("AssignmentCreator")
+  attendance     Attendance[]  @relation("StudentAttendance")
+  instructedEnrollments Enrollment[] @relation("EnrollmentInstructor")
+  
+  // Parent-Child Relations
+  parentId       String?
+  parent         User?         @relation("ParentChild", fields: [parentId], references: [id])
+  children       User[]        @relation("ParentChild")
+  notifications  Notification[]
+}
+
+model Course {
+  id              String       @id @default(uuid())
+  title           String
+  description     String
+  shortDescription String?
+  code            String       @unique
+  credits         Int          @default(3)
+  level           CourseLevel  @default(beginner)
+  objectives      String[]
+  durationWeeks   Int?
+  isFree          Boolean      @default(false)
+  price           Float        @default(0)
+  currency        String       @default("USD")
+  maxStudents     Int          @default(30)
+  totalEnrollments Int         @default(0)
+  status          CourseStatus @default(draft)
+  thumbnail       String?
+  bannerImage     String?
+  startDate       DateTime?
+  endDate         DateTime?
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  creatorId       String
+  createdBy       User         @relation("CreatedBy", fields: [creatorId], references: [id])
+  instructors     User[]       @relation("Instructors")
+  enrollments     Enrollment[]
+  classes         Class[]
+  assignments     Assignment[]
+}
+
+model Enrollment {
+  id          String    @id @default(uuid())
+  studentId   String
+  courseId    String
+  status      String    @default("active")
+  progress    Int       @default(0)
+  grade       Float?
+  enrolledAt  DateTime  @default(now())
+  completedAt DateTime?
+
+  // Relations
+  student     User      @relation(fields: [studentId], references: [id])
+  course      Course    @relation(fields: [courseId], references: [id])
+  instructorId String?
+  instructor   User?     @relation("EnrollmentInstructor", fields: [instructorId], references: [id])
+
+  @@unique([studentId, courseId])
+}
+
+model Class {
+  id              String       @id @default(uuid())
+  title           String
+  description     String?
+  startTime       DateTime
+  endTime         DateTime
+  isRecurring     Boolean      @default(false)
+  recurrencePattern RecurrencePattern?
+  recurrenceEndDate DateTime?
+  location        String?
+  isOnline        Boolean      @default(false)
+  meetingLink     String?
+  maxCapacity     Int?
+  agenda          String?
+  status          ClassStatus  @default(scheduled)
+  isActive        Boolean      @default(true)
+  
+  // Relations
+  courseId        String
+  course          Course       @relation(fields: [courseId], references: [id])
+  instructorId    String
+  instructor      User         @relation("ClassInstructor", fields: [instructorId], references: [id])
+  attendance      Attendance[]
+  assignments     Assignment[]
+}
+
+model Assignment {
+  id                    String            @id @default(uuid())
+  title                 String
+  description           String
+  instructions          String?
+  type                  AssignmentType    @default(homework)
+  totalPoints           Int
+  passingScore          Int?
+  weight                Int?              @default(0)
+  publishDate           DateTime?
+  dueDate               DateTime
+  allowLateSubmissions  Boolean           @default(false)
+  lateSubmissionPenalty Int?              @default(0)
+  allowedFileTypes      String[]
+  maxFileSize           Int?              // in MB
+  maxFiles              Int?              @default(1)
+  resources             Json?             // Array of objects {title, url, description}
+  rubric                Json?             // Array of rubric criteria
+  status                AssignmentStatus  @default(draft)
+  isActive              Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  // Relations
+  courseId              String
+  course                Course            @relation(fields: [courseId], references: [id])
+  classId               String?
+  class                 Class?            @relation(fields: [classId], references: [id])
+  creatorId             String
+  createdBy             User              @relation("AssignmentCreator", fields: [creatorId], references: [id])
+}
+
+model Attendance {
+  id              String           @id @default(uuid())
+  date            DateTime
+  status          AttendanceStatus
+  timeIn          DateTime?
+  timeOut         DateTime?
+  notes           String?
+  excuseReason    String?
+  excuseDocument  String?
+  excuseApproved  Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // Relations
+  studentId       String
+  student         User             @relation("StudentAttendance", fields: [studentId], references: [id])
+  classId         String
+  class           Class            @relation(fields: [classId], references: [id])
+  
+  @@unique([studentId, classId, date])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  type      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
